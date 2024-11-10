@@ -1,78 +1,88 @@
-let tokenClient;
+let map;
+let currentLayer;
 let accessToken;
 
-// Step 1: Handle Google Sign-In and request access token
-function handleSignIn() {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: '806605122824-u4ga126redvoaa8n22cam0vcn1d16f5r.apps.googleusercontent.com',
-        scope: 'https://www.googleapis.com/auth/earthengine.readonly',
-        callback: (tokenResponse) => {
-            console.log('Token response:', tokenResponse);
-            accessToken = tokenResponse.access_token;
-            document.getElementById('init-earth-engine').style.display = 'inline';
-            console.log('Signed in successfully. Click to initialize Earth Engine.');
-        }
-    });
-    tokenClient.requestAccessToken();
+// Initialize the Google API client and load Earth Engine
+function loadClient() {
+    gapi.load('client:auth2', initClient);
 }
 
-// Step 2: Initialize Earth Engine and fetch a map layer
+// Initialize the Google client
+function initClient() {
+    gapi.client.init({
+        clientId: 'YOUR_CLIENT_ID_HERE',
+        scope: 'https://www.googleapis.com/auth/earthengine.readonly',
+    }).then(() => {
+        console.log("Google API client initialized");
+    }).catch(error => {
+        console.error("Error initializing Google API client:", error);
+    });
+}
+
+// Event listener for sign-in button
+document.getElementById('signInButton').addEventListener('click', () => {
+    gapi.auth2.getAuthInstance().signIn().then(user => {
+        console.log("Signed in successfully");
+        accessToken = user.getAuthResponse().access_token;
+        initializeEarthEngine();
+    }).catch(error => {
+        console.error("Error during sign-in", error);
+    });
+});
+
+// Initialize Earth Engine with access token
 function initializeEarthEngine() {
-    if (!accessToken) {
-        console.error('Access token not available. Please sign in first.');
-        return;
+    console.log("Initializing Earth Engine with access token...");
+    fetchEarthEngineData();
+}
+
+// Fetch Earth Engine data based on the selected year
+function fetchEarthEngineData(year = 1990) {
+    const assetId = `projects/ee-theboygit/assets/Zambezi_RGB_${year}`;
+    console.log(`Loading image: ${assetId}`);
+    
+    fetch(`https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/assets/${assetId}?access_token=${accessToken}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Error fetching data: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log("Earth Engine image data:", data);
+            displayMap(data, year);
+        })
+        .catch(error => {
+            console.error("Error fetching Earth Engine data:", error);
+        });
+}
+
+// Display map and update layer
+function displayMap(data, year) {
+    if (!map) {
+        map = L.map('map').setView([-17.5, 24.3], 12); // Coordinates of Katima Mulilo
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 18,
+        }).addTo(map);
     }
 
-    console.log('Initializing Earth Engine with access token...');
+    if (currentLayer) {
+        map.removeLayer(currentLayer);
+    }
 
-    const imageId = 'projects/ee-theboygit/assets/Zambezi_RGB_1990';
-    fetch(`https://earthengine.googleapis.com/v1alpha/${imageId}`, {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`
-        }
-    })
-    .then(response => {
-        if (response.ok) {
-            return response.json();
-        } else {
-            return response.text().then(text => {
-                console.error('Error response from Earth Engine:', text);
-                throw new Error('Failed to fetch Earth Engine map layer');
-            });
-        }
-    })
-    .then(data => {
-        console.log('Earth Engine image data:', data);
-        setupMap(data);  // Use the response data to display the image on the map
-    })
-    .catch(error => {
-        console.error('Error fetching Earth Engine data:', error);
-    });
-}
-
-// Step 3: Set up the map and display the layer
-function setupMap(imageData) {
-    console.log('Setting up map...');
-    const map = L.map('map').setView([-17.5, 24.3], 10);
-
-    // Try adding a CORS proxy temporarily for local testing, uncomment the line below if needed
-    // const proxy = 'https://cors-anywhere.herokuapp.com/';
-    const tileUrl = `https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/maps/${imageData.name}/tiles/{z}/{x}/{y}?token=${accessToken}`;
-
-    // Add the tile layer to the map
-    const tileLayer = L.tileLayer(/* proxy + */ tileUrl, {
+    const imageUrl = `https://earthengine.googleapis.com/v1alpha/projects/earthengine-legacy/maps/${data.name}/tiles/{z}/{x}/{y}?access_token=${accessToken}`;
+    currentLayer = L.tileLayer(imageUrl, {
         attribution: '&copy; Google Earth Engine'
-    });
-    tileLayer.addTo(map);
+    }).addTo(map);
+
+    document.getElementById('yearLabel').textContent = year;
 }
 
-// Attach the click events to buttons after page load
-window.onload = () => {
-    const signInButton = document.getElementById('sign-in');
-    signInButton.onclick = handleSignIn;
-    
-    const initButton = document.getElementById('init-earth-engine');
-    initButton.style.display = 'none'; // Hide init button by default
-    initButton.onclick = initializeEarthEngine;
-};
+// Event listener for slider to change the year
+document.getElementById('yearSlider').addEventListener('input', (event) => {
+    const year = event.target.value;
+    fetchEarthEngineData(year);
+});
+
+// Load the Google API client
+loadClient();
