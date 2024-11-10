@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katima Mulilo Urban Growth Visualizer</title>
+    
+    <!-- Link to Leaflet CSS for map styling -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>Urban Growth of Katima Mulilo</h1>
+        <button id="sign-in">Sign in with Google</button>
+        <button id="init-earth-engine" style="display:none;">Initialize Earth Engine</button>
+        <p>Slide through the years to observe urban growth over time.</p>
+    </header>
+    
+    <div id="map"></div>
+    <div id="slider-container">
+        <input type="range" min="1990" max="2023" step="3" value="1990" id="year-slider">
+        <span id="year-label">1990</span>
+    </div>
+
+    <!-- Google GIS client library and Leaflet JavaScript -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
